@@ -38,7 +38,8 @@ typedef struct {
     unsigned ae_dup;
     unsigned ifaces;
     unsigned decrypted;
-    uint64_t graph[PW_GRAPH_SECS];
+    unsigned graph_n;
+    double graph[PW_GRAPH_SECS];
     unsigned skill_n;
     PwSkillRow skills[PW_SKILL_UI];
     char status[96];

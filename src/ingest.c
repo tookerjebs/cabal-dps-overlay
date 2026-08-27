@@ -22,6 +22,8 @@
 #define HASH_CAP 48
 #define SKILL_CAP 32
 #define GRAPH_SECS PW_GRAPH_SECS
+#define DPS_HIST_CAP 40u
+#define DPS_SAMPLE_MS 1000ull
 #define DUP_MS 50ull
 #define COMBAT_IDLE_MS 4000ull
 #define GAP_ALERT_MS 800ull
@@ -68,6 +70,11 @@ typedef struct {
     uint64_t graph_dmg[GRAPH_SECS];
     uint64_t graph_sec[GRAPH_SECS];
     uint64_t last_graph_sec;
+    uint64_t dps_at[DPS_HIST_CAP];
+    double dps_val[DPS_HIST_CAP];
+    unsigned dps_head;
+    unsigned dps_n;
+    uint64_t last_dps_sample_ms;
     uint32_t skill_ids[SKILL_CAP];
     uint64_t skill_dmg[SKILL_CAP];
     unsigned skill_casts[SKILL_CAP];
@@ -214,6 +221,24 @@ note_graph(uint64_t t, uint64_t dmg)
         g_ing.graph_dmg[slot] = 0;
     }
     g_ing.graph_dmg[slot] += dmg;
+}
+
+static void
+note_dps_sample(uint64_t t, double dps)
+{
+    if (!g_ing.first_ms) {
+        return;
+    }
+    if (g_ing.last_dps_sample_ms && t - g_ing.last_dps_sample_ms < DPS_SAMPLE_MS) {
+        return;
+    }
+    g_ing.last_dps_sample_ms = t;
+    g_ing.dps_at[g_ing.dps_head] = t;
+    g_ing.dps_val[g_ing.dps_head] = dps;
+    g_ing.dps_head = (g_ing.dps_head + 1u) % DPS_HIST_CAP;
+    if (g_ing.dps_n < DPS_HIST_CAP) {
+        g_ing.dps_n++;
+    }
 }
 
 static void
@@ -967,6 +992,11 @@ pw_ingest_reset(void)
     memset(g_ing.graph_dmg, 0, sizeof(g_ing.graph_dmg));
     memset(g_ing.graph_sec, 0, sizeof(g_ing.graph_sec));
     g_ing.last_graph_sec = 0;
+    memset(g_ing.dps_at, 0, sizeof(g_ing.dps_at));
+    memset(g_ing.dps_val, 0, sizeof(g_ing.dps_val));
+    g_ing.dps_head = 0;
+    g_ing.dps_n = 0;
+    g_ing.last_dps_sample_ms = 0;
     memset(g_ing.skill_ids, 0, sizeof(g_ing.skill_ids));
     memset(g_ing.skill_dmg, 0, sizeof(g_ing.skill_dmg));
     memset(g_ing.skill_casts, 0, sizeof(g_ing.skill_casts));
@@ -1021,6 +1051,7 @@ pw_ingest_snap(PwMeterSnap *out)
     } else {
         out->dps = 0;
     }
+    note_dps_sample(t, out->dps);
     maybe_close_graph(t / 1000ull);
     out->peak_dps = g_ing.peak_dps;
     out->notice = g_ing.notice;
@@ -1030,12 +1061,22 @@ pw_ingest_snap(PwMeterSnap *out)
     {
         unsigned i;
         unsigned order[SKILL_CAP];
-        uint64_t sec = t / 1000ull;
         unsigned n;
-        for (i = 0; i < PW_GRAPH_SECS; i++) {
-            uint64_t want = sec + (uint64_t)i + 1ull - (uint64_t)PW_GRAPH_SECS;
-            unsigned slot = (unsigned)(want % GRAPH_SECS);
-            out->graph[i] = (g_ing.graph_sec[slot] == want) ? g_ing.graph_dmg[slot] : 0;
+        uint64_t cutoff = t - (uint64_t)PW_GRAPH_SECS * 1000ull;
+        out->graph_n = 0;
+        for (i = 0; i < g_ing.dps_n && i < DPS_HIST_CAP; i++) {
+            unsigned idx = (g_ing.dps_head + DPS_HIST_CAP - g_ing.dps_n + i) %
+                           DPS_HIST_CAP;
+            if (g_ing.dps_at[idx] < cutoff) {
+                continue;
+            }
+            if (out->graph_n >= PW_GRAPH_SECS) {
+                break;
+            }
+            out->graph[out->graph_n++] = g_ing.dps_val[idx];
+        }
+        for (i = out->graph_n; i < PW_GRAPH_SECS; i++) {
+            out->graph[i] = 0;
         }
         n = g_ing.nskills;
         if (n > SKILL_CAP) {

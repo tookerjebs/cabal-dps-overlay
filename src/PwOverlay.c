@@ -353,46 +353,86 @@ skill_label(WCHAR *out, int n, uint32_t id)
 }
 
 static void
-draw_dmg_graph(HDC hdc, const uint64_t *g, const RECT *plot)
+draw_dps_graph(HDC hdc, const double *g, unsigned n, const RECT *plot)
 {
     HBRUSH bg = CreateSolidBrush(RGB(22, 24, 30));
-    HBRUSH bar = CreateSolidBrush(RGB(80, 220, 140));
-    uint64_t mx = 1;
+    HBRUSH fill = CreateSolidBrush(RGB(36, 88, 58));
+    HPEN grid = CreatePen(PS_SOLID, 1, RGB(48, 52, 62));
+    HPEN line = CreatePen(PS_SOLID, 2, RGB(80, 220, 140));
+    HPEN old_pen;
+    HBRUSH old_brush;
+    POINT pts[PW_GRAPH_SECS + 2];
+    double mx = 1.0;
     unsigned i;
+    unsigned grid_row;
     int w;
     int h;
 
     FillRect(hdc, plot, bg);
+    DeleteObject(bg);
     w = plot->right - plot->left;
     h = plot->bottom - plot->top;
     if (w < 8 || h < 8) {
-        DeleteObject(bg);
-        DeleteObject(bar);
+        DeleteObject(fill);
+        DeleteObject(grid);
+        DeleteObject(line);
         return;
     }
-    for (i = 0; i < PW_GRAPH_SECS; i++) {
+
+    old_pen = (HPEN)SelectObject(hdc, grid);
+    MoveToEx(hdc, plot->left, plot->bottom - 1, NULL);
+    LineTo(hdc, plot->right, plot->bottom - 1);
+    MoveToEx(hdc, plot->left, plot->top, NULL);
+    LineTo(hdc, plot->left, plot->bottom);
+    for (grid_row = 1; grid_row < 4; grid_row++) {
+        int y = plot->bottom - 1 - (int)((h - 1) * grid_row / 4.0);
+        MoveToEx(hdc, plot->left, y, NULL);
+        LineTo(hdc, plot->right, y);
+    }
+
+    if (n < 2) {
+        SelectObject(hdc, old_pen);
+        DeleteObject(fill);
+        DeleteObject(grid);
+        DeleteObject(line);
+        return;
+    }
+    if (n > PW_GRAPH_SECS) {
+        n = PW_GRAPH_SECS;
+    }
+    for (i = 0; i < n; i++) {
         if (g[i] > mx) {
             mx = g[i];
         }
     }
-    for (i = 0; i < PW_GRAPH_SECS; i++) {
-        int x0 = plot->left + (int)((unsigned)w * i / PW_GRAPH_SECS);
-        int x1 = plot->left + (int)((unsigned)w * (i + 1u) / PW_GRAPH_SECS);
-        int bh = (int)((uint64_t)(h - 2) * g[i] / mx);
-        RECT r;
-        if (g[i] && bh < 1) {
-            bh = 1;
+    mx *= 2.0;
+    for (i = 0; i < n; i++) {
+        int x = plot->left + (int)((w - 1) * (int)i / (int)(n - 1));
+        int y = plot->bottom - 1 - (int)((h - 1) * (g[i] / mx));
+        if (y < plot->top) {
+            y = plot->top;
         }
-        r.left = x0 + 1;
-        r.right = x1;
-        r.bottom = plot->bottom - 1;
-        r.top = r.bottom - bh;
-        if (g[i] && r.right > r.left) {
-            FillRect(hdc, &r, bar);
+        if (y > plot->bottom - 1) {
+            y = plot->bottom - 1;
         }
+        pts[i].x = x;
+        pts[i].y = y;
     }
-    DeleteObject(bg);
-    DeleteObject(bar);
+    pts[n].x = pts[n - 1].x;
+    pts[n].y = plot->bottom - 1;
+    pts[n + 1].x = pts[0].x;
+    pts[n + 1].y = plot->bottom - 1;
+
+    old_brush = (HBRUSH)SelectObject(hdc, fill);
+    SelectObject(hdc, GetStockObject(NULL_PEN));
+    Polygon(hdc, pts, (int)n + 2);
+    SelectObject(hdc, line);
+    Polyline(hdc, pts, (int)n);
+    SelectObject(hdc, old_pen);
+    SelectObject(hdc, old_brush);
+    DeleteObject(fill);
+    DeleteObject(grid);
+    DeleteObject(line);
 }
 
 static void
@@ -614,7 +654,7 @@ paint_overlay(HWND hwnd)
             plot.top = glab.bottom;
             plot.right = STRIP_W - 8;
             plot.bottom = plot.top + GRAPH_H;
-            draw_dmg_graph(hdc, snap.graph, &plot);
+            draw_dps_graph(hdc, snap.graph, snap.graph_n, &plot);
 
             sy = plot.bottom + GRAPH_GAP;
             head.left = GRIP_W + 8;
