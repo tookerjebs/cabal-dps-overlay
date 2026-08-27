@@ -9,9 +9,12 @@ Other servers and regions: coming soon. Maybe.
 
 ## Install
 
-1. Install [Npcap](https://npcap.com/) (default options are fine).
+1. Install [Npcap](https://npcap.com/) (default options are fine). If you already
+   have [Wireshark](https://www.wireshark.org/), you already have Npcap — skip
+   this step. You do not need Wireshark itself.
 2. Download the latest zip from [Releases](https://github.com/tookerjebs/cabal-dps-overlay/releases).
-3. Unzip and run `CabalDps.exe`. Windows will ask for Administrator.
+3. Unzip and keep `CabalDps.exe` and `keychain.bin` in the same folder. Run
+   `CabalDps.exe`. Windows will ask for Administrator.
 
 If last skill stays at `0` while you are hitting: Npcap is missing, UAC was
 declined, or the client was patched. After a client patch you need a new

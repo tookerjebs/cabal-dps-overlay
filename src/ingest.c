@@ -798,6 +798,13 @@ open_log(void)
         return;
     }
     slash[1] = 0;
+    /* Quiet by default. Drop an empty cabal-dps.verbose next to the exe to
+     * append the per-hit dump (cabal-dps.log). Players should never need it. */
+    lstrcpyW(path, exe);
+    lstrcatW(path, L"cabal-dps.verbose");
+    if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) {
+        return;
+    }
     lstrcpyW(path, exe);
     lstrcatW(path, L"cabal-dps.log");
     WideCharToMultiByte(CP_ACP, 0, path, -1, utf, MAX_PATH, NULL, NULL);
