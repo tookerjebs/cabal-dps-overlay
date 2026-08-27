@@ -799,7 +799,7 @@ open_log(void)
     }
     slash[1] = 0;
     lstrcpyW(path, exe);
-    lstrcatW(path, L"playcabal-wire.log");
+    lstrcatW(path, L"cabal-dps.log");
     WideCharToMultiByte(CP_ACP, 0, path, -1, utf, MAX_PATH, NULL, NULL);
     g_ing.log = fopen(utf, "a");
     if (g_ing.log) {

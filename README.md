@@ -5,13 +5,13 @@ the network (Npcap). It does not write to the client.
 
 **Currently supported:** PlayCabal (EP36)
 
-Official Cabal uses a different client build; this overlay is not for that.
+Other servers and regions: coming soon. Maybe.
 
 ## Install
 
 1. Install [Npcap](https://npcap.com/) (default options are fine).
 2. Download the latest zip from [Releases](https://github.com/tookerjebs/cabal-dps-overlay/releases).
-3. Unzip and run `PlayCabalWire.exe`. Windows will ask for Administrator.
+3. Unzip and run `CabalDps.exe`. Windows will ask for Administrator.
 
 If last skill stays at `0` while you are hitting: Npcap is missing, UAC was
 declined, or the client was patched. After a client patch you need a new

@@ -16,7 +16,7 @@
 #pragma comment(lib, "gdi32.lib")
 
 #define TARGET_EXE L"CabalMain.exe"
-#define OVERLAY_CLASS L"PlayCabalWireOverlay"
+#define OVERLAY_CLASS L"CabalDpsOverlay"
 #define POLL_MS 8u
 #define UI_FRAME_MS 8ull
 #define STRIP_W 380
@@ -810,7 +810,7 @@ wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
     (void)cmd;
     (void)show;
 
-    g_singleton = CreateMutexW(NULL, TRUE, L"Local\\PlayCabalWire.SingleInstance");
+    g_singleton = CreateMutexW(NULL, TRUE, L"Local\\CabalDps.SingleInstance");
     if (!g_singleton) {
         return 1;
     }

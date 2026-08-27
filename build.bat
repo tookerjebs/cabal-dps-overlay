@@ -33,11 +33,11 @@ if errorlevel 1 exit /b 1
 
 cl /nologo /O2 /W4 /utf-8 /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS /Fo"%OUT%\\" ^
   src\ostara.c src\tlv.c src\combat.c src\pcap_dyn.c src\ingest.c src\skill_names.c src\PwOverlay.c ^
-  /Fe:"%OUT%\PlayCabalWire.exe" ^
+  /Fe:"%OUT%\CabalDps.exe" ^
   /link /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='requireAdministrator' uiAccess='false'" ^
   user32.lib gdi32.lib iphlpapi.lib ws2_32.lib
 if errorlevel 1 exit /b 1
 
 echo Built %OUT%\pw-decrypt.exe
-echo Built %OUT%\PlayCabalWire.exe
+echo Built %OUT%\CabalDps.exe
 exit /b 0
