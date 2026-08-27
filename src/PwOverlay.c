@@ -1,6 +1,6 @@
 /* Cabal Online overlay. Npcap capture. No writes to the game process.
- * Drag the left grip. Click the strip for Lock / Reset.
- * F8 click-through. F9 reset. Hidden if Cabal is minimized.
+ * Drag the left grip. Click the strip for Reset / Close.
+ * F9 reset. Hidden if Cabal is minimized.
  */
 #include <windows.h>
 #include <tlhelp32.h>
@@ -37,7 +37,6 @@
 #define SKILL_LINE_H 16
 #define BTN_H 18
 #define HOTKEY_RESET 1
-#define HOTKEY_CLICK 2
 
 typedef struct {
     DWORD pid;
@@ -54,7 +53,6 @@ static int g_dragging;
 static int g_has_rel;
 static int g_rel_x;
 static int g_rel_y;
-static int g_click_through;
 static int g_visible;
 static int g_expanded;
 static int g_notice;
@@ -208,21 +206,6 @@ game_client_screen(HWND game, RECT *out)
     out->right = tl.x + (cr.right - cr.left);
     out->bottom = tl.y + (cr.bottom - cr.top);
     return (out->right - out->left) > 100 && (out->bottom - out->top) > 100;
-}
-
-static void
-set_click_through(HWND hwnd, int on)
-{
-    LONG_PTR ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-    g_click_through = on ? 1 : 0;
-    if (on) {
-        ex |= WS_EX_TRANSPARENT;
-    } else {
-        ex &= ~WS_EX_TRANSPARENT;
-    }
-    SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
-    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 }
 
 static void
@@ -413,22 +396,22 @@ draw_dmg_graph(HDC hdc, const uint64_t *g, const RECT *plot)
 }
 
 static void
-btn_lock_rect(RECT *r)
+btn_reset_rect(RECT *r)
 {
     int top = btn_top();
     r->left = STRIP_LABEL_LEFT;
     r->top = top;
-    r->right = STRIP_LABEL_LEFT + 64;
+    r->right = STRIP_LABEL_LEFT + 56;
     r->bottom = top + BTN_H;
 }
 
 static void
-btn_reset_rect(RECT *r)
+btn_close_rect(RECT *r)
 {
     int top = btn_top();
-    r->left = STRIP_LABEL_LEFT + 70;
+    r->left = STRIP_LABEL_LEFT + 62;
     r->top = top;
-    r->right = STRIP_LABEL_LEFT + 124;
+    r->right = STRIP_LABEL_LEFT + 118;
     r->bottom = top + BTN_H;
 }
 
@@ -466,7 +449,7 @@ paint_overlay(HWND hwnd)
     HDC buffer = NULL;
     HBITMAP back = NULL;
     HGDIOBJ old_bitmap = NULL;
-    RECT rc, strip, grip, dpsrc, lab, val, lockr, resetr, fail;
+    RECT rc, strip, grip, dpsrc, lab, val, resetr, closer, fail;
     HBRUSH bg = CreateSolidBrush(RGB(16, 16, 20));
     HBRUSH gripb = CreateSolidBrush(RGB(36, 36, 42));
     HBRUSH btnb = CreateSolidBrush(RGB(40, 40, 48));
@@ -686,15 +669,14 @@ paint_overlay(HWND hwnd)
                 DrawTextW(hdc, text, -1, &pct_r, DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
             }
         }
-        btn_lock_rect(&lockr);
         btn_reset_rect(&resetr);
-        FillRect(hdc, &lockr, btnb);
+        btn_close_rect(&closer);
         FillRect(hdc, &resetr, btnb);
+        FillRect(hdc, &closer, btnb);
         SelectObject(hdc, g_font_sm);
         SetTextColor(hdc, RGB(220, 220, 224));
-        DrawTextW(hdc, g_click_through ? L"Unlock" : L"Lock", -1, &lockr,
-                  DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         DrawTextW(hdc, L"Reset", -1, &resetr, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        DrawTextW(hdc, L"Close", -1, &closer, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
 
     SelectObject(hdc, old);
@@ -750,9 +732,6 @@ wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return MA_NOACTIVATE;
     case WM_NCHITTEST: {
         POINT pt;
-        if (g_click_through) {
-            return HTTRANSPARENT;
-        }
         pt.x = (short)LOWORD(lp);
         pt.y = (short)HIWORD(lp);
         ScreenToClient(hwnd, &pt);
@@ -763,20 +742,19 @@ wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     case WM_LBUTTONUP: {
         POINT pt;
-        RECT lockr, resetr;
+        RECT resetr, closer;
         pt.x = (short)LOWORD(lp);
         pt.y = (short)HIWORD(lp);
         if (g_expanded) {
-            btn_lock_rect(&lockr);
             btn_reset_rect(&resetr);
-            if (PtInRect(&lockr, pt)) {
-                set_click_through(hwnd, !g_click_through);
-                InvalidateRect(hwnd, NULL, FALSE);
-                return 0;
-            }
+            btn_close_rect(&closer);
             if (PtInRect(&resetr, pt)) {
                 pw_ingest_reset();
                 InvalidateRect(hwnd, NULL, FALSE);
+                return 0;
+            }
+            if (PtInRect(&closer, pt)) {
+                DestroyWindow(hwnd);
                 return 0;
             }
         }
@@ -801,15 +779,11 @@ wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         if (wp == HOTKEY_RESET) {
             pw_ingest_reset();
             InvalidateRect(hwnd, NULL, FALSE);
-        } else if (wp == HOTKEY_CLICK) {
-            set_click_through(hwnd, !g_click_through);
-            InvalidateRect(hwnd, NULL, FALSE);
         }
         return 0;
     case WM_DESTROY:
         KillTimer(hwnd, 1);
         UnregisterHotKey(hwnd, HOTKEY_RESET);
-        UnregisterHotKey(hwnd, HOTKEY_CLICK);
         pw_ingest_stop();
         if (g_font) {
             DeleteObject(g_font);
@@ -876,7 +850,6 @@ wWinMain(HINSTANCE inst, HINSTANCE prev, PWSTR cmd, int show)
 
     SetLayeredWindowAttributes(g_hwnd, 0, 230, LWA_ALPHA);
     RegisterHotKey(g_hwnd, HOTKEY_RESET, 0, VK_F9);
-    RegisterHotKey(g_hwnd, HOTKEY_CLICK, 0, VK_F8);
     SetTimer(g_hwnd, 1, POLL_MS, NULL);
     tick(g_hwnd);
 

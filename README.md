@@ -17,9 +17,9 @@ If last skill stays at `0` while you are hitting: Npcap is missing, UAC was
 declined, or the client was patched. After a client patch, replace
 `keychain.bin` next to the exe.
 
-`F8` click-through. `F9` reset. Drag the left grip. Click the strip to expand
-(30s graph, skill mix, Lock / Reset). The overlay docks to `CabalMain.exe` and
-hides if that window is minimized.
+`F9` reset. Drag the left grip. Click the strip to expand (30s graph, skill
+mix, Reset / Close). Close exits the overlay. The overlay docks to
+`CabalMain.exe` and hides if that window is minimized.
 
 DPS is session total / time since first hit. Peak is the highest completed
 1-second damage bucket. Skill mix is this session, with skill names and
