@@ -1,0 +1,8 @@
+*.obj
+*.pdb
+*.exe
+*.pcapng
+*.pcap
+*.log
+build/
+__pycache__/
